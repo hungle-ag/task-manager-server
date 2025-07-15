@@ -1,18 +1,25 @@
-import { User } from '../../../config/db.collections.js'
+import { User, Task } from '../../../config/db.collections.js'
 
 export async function removeEmployee(req, res) {
-  try {
-    const employeeId = req.params.id
+  const { id } = req.params
+  if (!id) {
+    return res.status(400).json({ success: false, message: 'Id is required' })
+  }
 
-    if (!employeeId) {
-      return res.status(400).json({ success: false, message: 'Employee ID is required' })
+  try {
+    const userRef = User.doc(id)
+    const userSnap = await userRef.get()
+
+    if (!userSnap.exists) {
+      return res.status(404).json({ success: false, message: 'Employee is not found' })
     }
 
-    const userRef = User.doc(employeeId)
-    const docSnap = await userRef.get()
-
-    if (!docSnap.exists) {
-      return res.status(404).json({ success: false, message: 'Employee not found' })
+    const taskSnap = await Task.where('assignedTo', '==', id).limit(1).get()
+    if (!taskSnap.empty) {
+      return res.status(400).json({
+        success: false,
+        message: 'Employee has been assigned to a task',
+      })
     }
 
     await userRef.delete()
@@ -23,7 +30,7 @@ export async function removeEmployee(req, res) {
       data: null,
     })
   } catch (err) {
-    console.error('remove-employee error:', err)
-    return res.status(500).json({ message: 'Internal server error' })
+    console.error('removeEmployee error:', err)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }

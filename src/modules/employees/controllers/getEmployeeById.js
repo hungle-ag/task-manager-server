@@ -1,29 +1,33 @@
 import { User } from '../../../config/db.collections.js'
+import { convertTimestampsToISOString } from '../../../utils/convertTimestampsToISOString.js'
 
-export async function getEmployeeById(req, res, next) {
+export async function getEmployeeById(req, res) {
   try {
     const { id } = req.params
-    const userRef = User.doc(id)
-    const doc = await userRef.get()
-
-    if (!doc.exists) {
-      res.status(404).json({
-        success: false,
-        message: `User is not found!`,
-      })
-      return
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Employee ID is required' })
     }
 
-    res.json({
+    const ref = User.doc(id)
+    const snap = await ref.get()
+
+    if (!snap.exists) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    const data = snap.data()
+    const user = {
+      id: snap.id,
+      ...convertTimestampsToISOString(data, ['createdAt', 'updatedAt']),
+    }
+
+    return res.status(200).json({
       success: true,
-      message: 'Get user successfully!',
-      data: {
-        id: doc.id,
-        ...doc.data(),
-      },
+      message: 'Get user successfully',
+      data: user,
     })
   } catch (err) {
-    console.err('get-employee-by-id error:', err)
-    return res.status(500).json({ message: 'Internal server error' })
+    console.error('getEmployeeById error:', err)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }

@@ -10,11 +10,7 @@ import messageRouter from './modules/messages/message.route.js'
 const app = express()
 
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'https://task-manager-web-ashy.vercel.app',
-  ],
+  origin: ['http://localhost:3000', 'http://localhost:5173', process.env.WEB_URL],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,

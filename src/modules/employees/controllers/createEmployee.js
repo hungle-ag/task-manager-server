@@ -9,12 +9,12 @@ const schema = z.object({
   email: z
     .string()
     .trim()
-    .optional()
-    .or(z.literal(''))
-    .refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
-      message: 'Invalid email',
+    .min(1, 'Email is required')
+    .refine((val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
+      message: 'Invalid email format',
     }),
   phone: z.string().regex(/^\+\d{8,15}$/, 'Phone must start with "+" and contain 8–15 digits'),
+  isActive: z.boolean().optional(),
 })
 
 export async function createEmployee(req, res) {
@@ -30,10 +30,19 @@ export async function createEmployee(req, res) {
     }
 
     const data = result.data
+    const { email, phone } = data
 
-    const checkExit = await User.where('email', '==', data.email).limit(1).get()
-    if (!checkExit.empty) {
-      return res.status(409).json({ message: 'Email already in use' })
+    const [checkEmailSnap, checkPhoneSnap] = await Promise.all([
+      email ? User.where('email', '==', email).limit(1).get() : Promise.resolve({ empty: true }),
+      User.where('phone', '==', phone).limit(1).get(),
+    ])
+
+    if (!checkEmailSnap.empty) {
+      return res.status(409).json({ message: 'Email is exist' })
+    }
+
+    if (!checkPhoneSnap.empty) {
+      return res.status(409).json({ message: 'Phone is exist' })
     }
 
     const id = uuid()
@@ -48,12 +57,17 @@ export async function createEmployee(req, res) {
 
     await User.doc(id).set(newEmployee)
 
-    await sendWelcomeEmail({ to: newEmployee.email, name: newEmployee.name })
+    if (newEmployee.email) {
+      await sendWelcomeEmail({
+        to: newEmployee.email,
+        name: newEmployee.name,
+      })
+    }
 
     return res.status(201).json({
       success: true,
-      data: { id, ...newEmployee },
       message: 'Employee created successfully',
+      data: { id, ...newEmployee },
     })
   } catch (err) {
     console.error('create-employee error:', err)

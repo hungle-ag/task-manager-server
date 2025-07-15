@@ -7,55 +7,44 @@ const schema = z.object({
   email: z
     .string()
     .trim()
-    .optional()
-    .or(z.literal(''))
-    .refine((val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
-      message: 'Invalid email',
-    }),
+    .min(1, 'Email is required')
+    .refine((val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), { message: 'Invalid email' }),
   phone: z.string().regex(/^\+\d{8,15}$/, 'Phone must start with "+" and contain 8–15 digits'),
+  isActive: z.boolean().optional(),
 })
 
-export async function updateEmployee(req, res, next) {
+export async function updateEmployee(req, res) {
+  const { id } = req.params
+  if (!id) return res.status(400).json({ success: false, message: 'Employee ID is required' })
+
+  const parsed = schema.safeParse(req.body)
+  if (!parsed.success) {
+    const errors = parsed.error.issues.map((e) => ({
+      field: e.path.join('.'),
+      message: e.message,
+    }))
+    return res.status(400).json({ success: false, errors })
+  }
+
   try {
-    const result = schema.safeParse(req.body)
-
-    if (!result.success) {
-      const errors = result.error.issues.map((err) => ({
-        field: err.path.join('.'),
-        message: err.message,
-      }))
-      return res.status(400).json({ success: false, errors })
-    }
-
-    const employeeId = req.params.id
-    if (!employeeId) {
-      return res.status(400).json({ success: false, message: 'Employee ID is required' })
-    }
-
-    const userRef = User.doc(employeeId)
-    const snapshot = await userRef.get()
-
-    if (!snapshot.exists) {
+    const userRef = User.doc(id)
+    const doc = await userRef.get()
+    if (!doc.exists) {
       return res.status(404).json({ success: false, message: 'Employee not found' })
     }
 
-    const data = {
-      ...result.data,
-      updatedAt: Timestamp.now(),
-    }
-
+    const data = { ...parsed.data, updatedAt: Timestamp.now() }
+    console.log('data: ', data)
     await userRef.update(data)
 
-    const updatedSnap = await userRef.get()
-    const updatedEmployee = { id: updatedSnap.id, ...updatedSnap.data() }
-
+    const updated = await userRef.get()
     return res.status(200).json({
       success: true,
       message: 'Employee updated successfully',
-      data: updatedEmployee,
+      data: { id: updated.id, ...updated.data() },
     })
   } catch (err) {
-    console.error('update-employee error:', err)
-    return res.status(500).json({ message: 'Internal server error' })
+    console.error('updateEmployee error:', err)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
