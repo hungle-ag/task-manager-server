@@ -14,6 +14,11 @@ export async function resendOtpByEmail(req, res) {
 
     const { email } = parseResult.data
 
+    const recentlySent = await hasRecentEmailOtp(email)
+    if (recentlySent) {
+      return res.status(429).json({ message: 'OTP already sent. Please wait' })
+    }
+
     // send OTP
     const { otp, id: accessCodeId } = await sendOtpByEmail(email)
 
@@ -26,6 +31,7 @@ export async function resendOtpByEmail(req, res) {
       },
     }
 
+    // Dev only — don't show this to production
     if (process.env.NODE_ENV === 'dev') {
       responsePayload.data.otp = otp
     }

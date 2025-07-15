@@ -31,6 +31,7 @@ export async function resendOtpByPhone(req, res) {
       },
     }
 
+    // Dev only — don't show this to production
     if (process.env.NODE_ENV === 'dev') {
       responsePayload.data.otp = otp
     }

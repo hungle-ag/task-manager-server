@@ -18,7 +18,7 @@ export async function getAllEmployee(req, res) {
       ...doc.data(),
     }))
 
-    // Convert user timestamps and sort by createdAt
+    // Convert user timestamps and sort by createdAt (-_-)
     const userList = docs
       .map((item) => convertTimestampsToISOString(item, ['createdAt', 'updatedAt', 'dob']))
       .sort((a, b) => {
