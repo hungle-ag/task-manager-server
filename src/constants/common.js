@@ -1,5 +1,6 @@
-const ROLE = {
+export const ROLE = {
   MANAGER: 'manager',
   EMPLOYEE: 'employee',
 }
-module.exports = { ROLE }
+
+export const OTP_TTL_SECONDS = 120

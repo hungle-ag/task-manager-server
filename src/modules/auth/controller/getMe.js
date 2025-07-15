@@ -1,6 +1,6 @@
 import { User } from '../../../config/db.collections.js'
 
-export async function getMe(req, res, next) {
+export async function getMe(req, res) {
   try {
     const userId = req.user?.id
     if (!req.user || !req.user.id) {

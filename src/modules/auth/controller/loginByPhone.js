@@ -1,37 +1,50 @@
 import { config } from 'dotenv'
 import { hasRecentPhoneOtp, sendOtpByPhone } from '../service/opt.service.js'
+import { z } from 'zod'
+
+export const schema = z.object({
+  phone: z.string().regex(/^\+\d{8,15}$/, 'Phone must start with "+" and contain 8–15 digits'),
+})
 
 config()
 
-export async function loginByPhone(req, res, next) {
+export async function loginByPhone(req, res) {
   try {
-    const { phone } = req.body
+    const parseResult = schema.safeParse(req.body)
 
-    if (!phone) {
-      return res.status(400).json({ message: 'Phone number is required' })
+    if (!parseResult.success) {
+      const errorMessage = parseResult.error.errors[0].message
+      return res.status(400).json({ message: errorMessage })
     }
 
-    const recentlySent = await hasRecentPhoneOtp(phone)
+    const { phone } = parseResult.data
 
+    const recentlySent = await hasRecentPhoneOtp(phone)
     if (recentlySent) {
       return res.status(429).json({
-        message: 'OTP already sent. Try again in a few minutes',
+        message: 'OTP already sent. Try again in 3 minutes',
       })
     }
 
-    const { otp, id } = await sendOtpByPhone(phone)
+    // send OTP
+    const { otp, id: accessCodeId } = await sendOtpByPhone(phone)
 
-    return res.status(200).json({
+    const responsePayload = {
       success: true,
-      message: 'OTP sent successfully!',
+      message: 'OTP sent successfully',
       data: {
-        accessCodeId: id,
+        accessCodeId,
         phone,
-        ...(process.env.NODE_ENV === 'dev' && { otp }),
       },
-    })
+    }
+
+    if (process.env.NODE_ENV === 'dev') {
+      responsePayload.data.otp = otp
+    }
+
+    return res.status(200).json(responsePayload)
   } catch (err) {
-    console.error('login-by-phone error:', err)
+    console.error('loginByPhone error:', err)
     return res.status(500).json({ message: 'Internal server error' })
   }
 }

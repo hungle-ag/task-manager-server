@@ -2,12 +2,11 @@ import { v4 as uuid } from 'uuid'
 import { AccessCode } from '../../../config/db.collections.js'
 import { generateOtp } from '../../../utils/generateCode.js'
 import { getOtpExpiry } from '../../../utils/optExpiry.js'
-// import { sendSMS } from '../../../utils/sendSMS.js'
+import { sendSMS } from '../../../utils/sendSMS.js'
 import { sendOtpEmail } from '../../../utils/sendOtpMail.js'
+import { OTP_TTL_SECONDS } from '../../../constants/common.js'
 
-const seconds = 30
-
-// =================== PHONE ===================
+// ======= PHONE ========
 export async function hasRecentPhoneOtp(phone) {
   const snapshot = await AccessCode.where('phone', '==', phone)
     .where('role', '==', 'manager')
@@ -15,11 +14,11 @@ export async function hasRecentPhoneOtp(phone) {
     .where('isUsed', '==', false)
     .get()
 
-  const cutoff = getOtpExpiry(seconds)
+  const cutoffTime = getOtpExpiry(OTP_TTL_SECONDS)
 
   return snapshot.docs.some((doc) => {
     const createdAt = doc.data()?.createdAt
-    return createdAt && createdAt.toDate() >= cutoff
+    return createdAt && createdAt.toDate() >= cutoffTime
   })
 }
 
@@ -36,13 +35,12 @@ export async function sendOtpByPhone(phone) {
     type: 'sms',
   })
 
-  // sendSMS({ to: phone, text: `Your OTP code is ${otp}` })
+  sendSMS({ to: phone, text: `Your OTP code is ${otp}` })
 
   return { otp, id }
 }
 
-// =================== EMAIL ===================
-
+// ======= MAIL ========
 export async function hasRecentEmailOtp(email) {
   const snapshot = await AccessCode.where('email', '==', email)
     .where('role', '==', 'employee')
@@ -50,11 +48,11 @@ export async function hasRecentEmailOtp(email) {
     .where('isUsed', '==', false)
     .get()
 
-  const cutoff = getOtpExpiry(seconds)
+  const cutoffTime = getOtpExpiry(OTP_TTL_SECONDS)
 
   return snapshot.docs.some((doc) => {
     const createdAt = doc.data()?.createdAt
-    return createdAt && createdAt.toDate() >= cutoff
+    return createdAt && createdAt.toDate() >= cutoffTime
   })
 }
 
@@ -70,6 +68,7 @@ export async function sendOtpByEmail(email) {
     role: 'employee',
     type: 'email',
   })
+
   sendOtpEmail({ to: email, otpCode: otp })
 
   return { otp, id }

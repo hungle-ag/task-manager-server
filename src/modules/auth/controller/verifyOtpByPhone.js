@@ -1,34 +1,47 @@
+import { Timestamp } from 'firebase-admin/firestore'
 import { v4 as uuid } from 'uuid'
+import { z } from 'zod'
 import { AccessCode, User } from '../../../config/db.collections.js'
 import { db } from '../../../config/db.js'
 import { generateToken } from '../../../utils/jwt.js'
 import { getOtpExpiry } from '../../../utils/optExpiry.js'
-import { Timestamp } from 'firebase-admin/firestore'
 
-export async function verifyOtpByPhone(req, res, next) {
+const verifyOtpPhoneSchema = z.object({
+  phone: z.string().regex(/^\+\d{8,15}$/, 'Phone must start with "+" and contain 8–15 digits'),
+  otp: z
+    .string()
+    .length(6, 'OTP must be 6 characters')
+    .regex(/^\d{6}$/, 'OTP must be numeric'),
+  accessCodeId: z.string().min(1, 'accessCodeId is required'),
+})
+
+export async function verifyOtpByPhone(req, res) {
   try {
-    const { phone, otp, accessCodeId } = req.body
-
-    if (!phone || !otp || !accessCodeId) {
-      return res.status(400).json({ message: 'Phone, OTP, and accessCodeId are required.' })
+    const parseResult = verifyOtpPhoneSchema.safeParse(req.body)
+    if (!parseResult.success) {
+      return res.status(400).json({ message: parseResult.error.errors[0].message })
     }
+
+    const { phone, otp, accessCodeId } = parseResult.data
 
     const accessCodeSnap = await AccessCode.doc(accessCodeId).get()
     if (!accessCodeSnap.exists) {
-      return res.status(400).json({ message: 'Expired OTP.' })
+      return res.status(400).json({ message: 'Expired OTP' })
     }
 
     const accessCode = accessCodeSnap.data()
-    const isValid =
+    const otpCreatedAt = accessCode.createdAt?.toDate?.()
+
+    const isValidOtp =
       accessCode.phone === phone &&
       accessCode.otp === otp &&
       accessCode.type === 'sms' &&
       accessCode.role === 'manager' &&
       accessCode.isUsed === false &&
-      accessCode.createdAt?.toDate?.() >= getOtpExpiry()
+      otpCreatedAt >= getOtpExpiry()
 
-    if (!isValid) {
-      return res.status(400).json({ message: 'Invalid or expired OTP.' })
+    if (!isValidOtp) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' })
     }
 
     await accessCodeSnap.ref.update({ isUsed: true })
@@ -72,11 +85,11 @@ export async function verifyOtpByPhone(req, res, next) {
 
     return res.status(200).json({
       success: true,
-      message: 'OTP verified successfully.',
+      message: 'OTP verified successfully',
       data: { user, token },
     })
   } catch (err) {
-    console.error('verify-otp-by-phone error:', err)
+    console.error('verifyOtpByPhone error:', err)
     return res.status(500).json({ message: 'Internal server error.' })
   }
 }

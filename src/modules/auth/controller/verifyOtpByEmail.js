@@ -1,32 +1,47 @@
+import { z } from 'zod'
 import { AccessCode, User } from '../../../config/db.collections.js'
 import { db } from '../../../config/db.js'
 import { generateToken } from '../../../utils/jwt.js'
 import { getOtpExpiry } from '../../../utils/optExpiry.js'
 
-export async function verifyOtpByEmail(req, res, next) {
-  try {
-    const { email, otp, accessCodeId } = req.body
+const verifyOtpSchema = z.object({
+  email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email address'),
+  otp: z
+    .string()
+    .length(6, 'OTP must be 6 characters')
+    .regex(/^\d{6}$/, 'OTP must be numeric'),
+  accessCodeId: z.string().min(1, 'accessCodeId is required'),
+})
 
-    if (!email || !otp || !accessCodeId) {
-      return res.status(400).json({ message: 'Email, OTP, and accessCodeId are required.' })
+export async function verifyOtpByEmail(req, res) {
+  try {
+    const parseResult = verifyOtpSchema.safeParse(req.body)
+
+    if (!parseResult.success) {
+      const errorMessage = parseResult.error.errors[0].message
+      return res.status(400).json({ message: errorMessage })
     }
+
+    const { email, otp, accessCodeId } = parseResult.data
 
     const accessCodeSnap = await AccessCode.doc(accessCodeId).get()
     if (!accessCodeSnap.exists) {
-      return res.status(400).json({ message: 'Expired OTP.' })
+      return res.status(400).json({ message: 'Expired OTP' })
     }
 
     const accessCode = accessCodeSnap.data()
-    const isValid =
+
+    const otpCreationTime = accessCode.createdAt?.toDate?.()
+    const isOtpValid =
       accessCode.email === email &&
       accessCode.otp === otp &&
       accessCode.type === 'email' &&
       accessCode.role === 'employee' &&
       accessCode.isUsed === false &&
-      accessCode.createdAt?.toDate?.() >= getOtpExpiry()
+      otpCreationTime >= getOtpExpiry()
 
-    if (!isValid) {
-      return res.status(400).json({ message: 'Invalid or expired OTP.' })
+    if (!isOtpValid) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' })
     }
 
     await accessCodeSnap.ref.update({ isUsed: true })
@@ -51,7 +66,7 @@ export async function verifyOtpByEmail(req, res, next) {
       .get()
 
     if (userSnap.empty) {
-      return res.status(404).json({ message: 'User not found.' })
+      return res.status(404).json({ message: 'User not found' })
     }
 
     const userDoc = userSnap.docs[0]
@@ -64,7 +79,7 @@ export async function verifyOtpByEmail(req, res, next) {
       data: { user, token },
     })
   } catch (err) {
-    console.error('verify-otp-by-email error:', err)
-    return res.status(500).json({ message: 'Internal server error.' })
+    console.error('verifyOtpByEmail error:', err)
+    return res.status(500).json({ message: 'Internal server error' })
   }
 }

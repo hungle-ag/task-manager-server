@@ -1,17 +1,23 @@
 import { config } from 'dotenv'
-import { db } from '../../../config/db.js'
-import { hasRecentEmailOtp, sendOtpByEmail } from '../service/opt.service.js'
 import { User } from '../../../config/db.collections.js'
+import { hasRecentEmailOtp, sendOtpByEmail } from '../service/opt.service.js'
+import { z } from 'zod'
 
 config()
 
-export async function loginByEmail(req, res, next) {
-  try {
-    const { email } = req.body
+const schema = z.object({
+  email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email address'),
+})
 
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' })
+export async function loginByEmail(req, res) {
+  try {
+    const parseResult = schema.safeParse(req.body)
+    if (!parseResult.success) {
+      const errorMessage = parseResult.error.errors[0].message
+      return res.status(400).json({ message: errorMessage })
     }
+
+    const { email } = parseResult.data
 
     const userSnap = await User.where('email', '==', email)
       .where('role', '==', 'employee')
@@ -23,26 +29,31 @@ export async function loginByEmail(req, res, next) {
     }
 
     const recentlySent = await hasRecentEmailOtp(email)
-
     if (recentlySent) {
       return res.status(429).json({
-        message: 'OTP already sent. Try again in a few minutes',
+        message: 'OTP already sent. Try again in 3 minutes',
       })
     }
 
-    const { otp, id } = await sendOtpByEmail(email)
+    // send OTP
+    const { otp, id: accessCodeId } = await sendOtpByEmail(email)
 
-    return res.status(200).json({
+    const responsePayload = {
       success: true,
-      message: 'OTP sent via email',
+      message: 'OTP sent successfully',
       data: {
+        accessCodeId,
         email,
-        accessCodeId: id,
-        ...(process.env.NODE_ENV === 'dev' && { otp }),
       },
-    })
+    }
+
+    if (process.env.NODE_ENV === 'dev') {
+      responsePayload.data.otp = otp
+    }
+
+    return res.status(200).json(responsePayload)
   } catch (err) {
-    console.error('login-by-mail error:', err)
+    console.error('loginByEmail error:', err)
     return res.status(500).json({ message: 'Internal server error' })
   }
 }
