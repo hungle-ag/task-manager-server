@@ -32,7 +32,6 @@ export async function getAllTasks(req, res) {
     const start = (currentPage - 1) * perPage
     const paginatedTasks = sortedTasks.slice(start, start + perPage)
 
-    // 👉 Gắn employee name nếu có
     const data = await Promise.all(
       paginatedTasks.map(async (task) => {
         let employeeName = null
