@@ -1,6 +1,6 @@
-import { z } from 'zod'
-import { User } from '../../../config/db.collections.js'
 import { Timestamp } from 'firebase-admin/firestore'
+import { z } from 'zod'
+import { Task, User } from '../../../config/db.collections.js'
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -15,7 +15,7 @@ const schema = z.object({
 
 export async function updateEmployee(req, res) {
   const { id } = req.params
-  if (!id) return res.status(400).json({ success: false, message: 'Employee ID is required' })
+  if (!id) return res.status(400).json({ success: false, message: 'Id is required' })
 
   const parsed = schema.safeParse(req.body)
   if (!parsed.success) {
@@ -29,12 +29,25 @@ export async function updateEmployee(req, res) {
   try {
     const userRef = User.doc(id)
     const doc = await userRef.get()
+
     if (!doc.exists) {
-      return res.status(404).json({ success: false, message: 'Employee not found' })
+      return res.status(404).json({ success: false, message: 'User not found' })
     }
 
-    const data = { ...parsed.data, updatedAt: Timestamp.now() }
-    console.log('data: ', data)
+    const currentData = doc.data()
+    const newData = parsed.data
+
+    if (currentData.isActive && newData.isActive === false) {
+      const assignedTasks = await Task.where('assignedTo', '==', id).limit(1).get()
+      if (!assignedTasks.empty) {
+        return res.status(400).json({
+          success: false,
+          message: 'User is assigned to a task',
+        })
+      }
+    }
+
+    const data = { ...newData, updatedAt: Timestamp.now() }
     await userRef.update(data)
 
     const updated = await userRef.get()

@@ -1,4 +1,4 @@
-import { User, Task } from '../../../config/db.collections.js'
+import { Task, User } from '../../../config/db.collections.js'
 
 export async function removeEmployee(req, res) {
   const { id } = req.params

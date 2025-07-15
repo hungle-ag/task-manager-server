@@ -2,7 +2,7 @@ import { sendMail } from '../config/mailer.js'
 
 export async function sendWelcomeEmail({ to, name = 'there' }) {
   const subject = 'Welcome to Task Manager!!!'
-  const url = process.env.WEB_URL
+  const baseUrl = process.env.WEB_URL || 'http://localhost:5173'
 
   const html = `
     <div style="font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333;">
@@ -12,7 +12,7 @@ export async function sendWelcomeEmail({ to, name = 'there' }) {
 
       <p>To get started, please log in using your phone number. You will receive a one-time code (OTP) for verification.</p>
 
-      <a href="${url}/auth/employee-login"
+      <a href="${baseUrl}/auth/employee-login"
          target="_blank"
          style="display: inline-block; padding: 10px 20px; background-color: #1976d2; color: white; text-decoration: none; border-radius: 4px; margin-top: 20px;">
         Go to Employee Login ...

@@ -1,7 +1,7 @@
+import { Timestamp } from 'firebase-admin/firestore'
 import { v4 as uuid } from 'uuid'
 import { z } from 'zod'
 import { User } from '../../../config/db.collections.js'
-import { Timestamp } from 'firebase-admin/firestore'
 import { sendWelcomeEmail } from '../../../utils/sendWelcomeEmail.js'
 
 const schema = z.object({
