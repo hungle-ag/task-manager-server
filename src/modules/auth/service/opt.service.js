@@ -22,7 +22,7 @@ export async function hasRecentPhoneOtp(phone) {
       return createdAt && createdAt.toDate() >= cutoffTime
     })
   } catch (err) {
-    console.error('[hasRecentPhoneOtp] Error:', err)
+    console.error('hasRecentPhoneOtp Error:', err)
     return false
   }
 }
@@ -43,7 +43,7 @@ export async function sendOtpByPhone(phone) {
 
     await sendSMS({ to: phone, text: `Your OTP code is ${otp}` })
   } catch (err) {
-    console.error('[sendOtpByPhone] Error:', err)
+    console.error('sendOtpByPhone Error:', err)
     throw new Error('Failed to send OTP by phone')
   }
 
@@ -66,7 +66,7 @@ export async function hasRecentEmailOtp(email) {
       return createdAt && createdAt.toDate() >= cutoffTime
     })
   } catch (err) {
-    console.error('[hasRecentEmailOtp] Error:', err)
+    console.error('hasRecentEmailOtp Error:', err)
     return false
   }
 }
@@ -87,7 +87,7 @@ export async function sendOtpByEmail(email) {
 
     await sendOtpEmail({ to: email, otpCode: otp })
   } catch (err) {
-    console.error('[sendOtpByEmail] Error:', err)
+    console.error('sendOtpByEmail Error:', err)
     throw new Error('Failed to send OTP by email')
   }
 
