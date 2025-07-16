@@ -10,7 +10,7 @@ export async function getAllTasks(req, res) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
 
-    const { page, limit } = req.query
+    const { page, limit, title } = req.query
     const currentPage = parseInt(page) || 1
     const perPage = parseInt(limit) || 10
 
@@ -20,6 +20,10 @@ export async function getAllTasks(req, res) {
       query = query.where('createdBy', '==', userId)
     } else {
       query = query.where('assignedTo', '==', userId)
+    }
+
+    if (title) {
+      query = query.where('title', '==', title)
     }
 
     const snapshot = await query.get()
